@@ -1,0 +1,6 @@
+---
+- name: Setup EC2 for Packer
+  hosts: packer-instance  # Updated group name to match inventory
+  become: true
+  roles:
+    - ansible/roles/packer-uploader

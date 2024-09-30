@@ -1,0 +1,97 @@
+---
+- name: Setup EC2 for Packer
+  hosts: packer-instance
+  become: true
+  vars:
+    packer_version: "1.9.0"  # Update to the latest stable version
+    packer_template_src: "/Users/kkelley/Projects/packer-sandbox/packer_template.pkr.hcl"
+    packer_template_dest: "/home/{{ ansible_user }}/packer_template.pkr.hcl"
+    packer_playbook_src: "/Users/kkelley/Projects/packer-sandbox/packer_playbook.yml"
+    packer_playbook_dest: "/home/{{ ansible_user }}/packer_playbook.yml"
+
+  tasks:
+    - name: Determine OS Family
+      ansible.builtin.set_fact:
+        os_family: "{{ ansible_facts['os_family'] }}"
+
+    - name: Update package cache (Debian-based)
+      ansible.builtin.apt:
+        update_cache: yes
+      when: os_family == "Debian"
+
+    - name: Update package cache (RedHat-based)
+      ansible.builtin.yum:
+        update_cache: yes
+      when: os_family == "RedHat"
+
+    - name: Install necessary packages (Debian-based)
+      ansible.builtin.apt:
+        name:
+          - awscli
+          - unzip
+          - curl
+        state: present
+      when: os_family == "Debian"
+
+    - name: Install necessary packages (RedHat-based)
+      ansible.builtin.yum:
+        name:
+          - awscli
+          - unzip
+          - curl-minimal
+        state: present
+      when: os_family == "RedHat"
+
+    - name: Download Packer
+      ansible.builtin.get_url:
+        url: "https://releases.hashicorp.com/packer/{{ packer_version }}/packer_{{ packer_version }}_linux_amd64.zip"
+        dest: "/tmp/packer_{{ packer_version }}_linux_amd64.zip"
+
+    - name: Unzip Packer
+      ansible.builtin.unarchive:
+        src: "/tmp/packer_{{ packer_version }}_linux_amd64.zip"
+        dest: "/usr/local/bin/"
+        remote_src: yes
+        mode: '0755'
+
+    - name: Verify Packer installation
+      ansible.builtin.command: packer --version
+      register: packer_version_output
+
+    - name: Print Packer version
+      ansible.builtin.debug:
+        msg: "Packer version installed: {{ packer_version_output.stdout }}"
+
+    - name: Create directory for Packer templates
+      ansible.builtin.file:
+        path: "/home/{{ ansible_user }}/packer"
+        state: directory
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0755'
+
+    - name: Copy Packer template
+      ansible.builtin.copy:
+        src: "{{ packer_template_src }}"
+        dest: "{{ packer_template_dest }}"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0644'
+
+    - name: Copy Packer playbook
+      ansible.builtin.copy:
+        src: "{{ packer_playbook_src }}"
+        dest: "{{ packer_playbook_dest }}"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0644'
+
+    - name: Run Packer build
+      ansible.builtin.command: packer build {{ packer_template_dest }}
+      args:
+        chdir: "/home/{{ ansible_user }}/"
+      register: packer_build_output
+
+    - name: Display Packer build output
+      ansible.builtin.debug:
+        var: packer_build_output.stdout

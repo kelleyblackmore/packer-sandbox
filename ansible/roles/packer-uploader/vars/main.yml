@@ -1,0 +1,9 @@
+---
+packer_version: "1.9.0"  # Update to the desired Packer version
+packer_template_src: "packer_template.pkr.hcl"
+packer_template_dest: "/home/{{ ansible_user }}/packer_template.pkr.hcl"
+packer_playbook_src: "packer_playbook.yml"
+packer_playbook_dest: "/home/{{ ansible_user }}/packer_playbook.yml"
+aws_region: "us-east-1"  # Ensure this matches your Terraform configuration
+ssh_key_name: "terraform_key"  # Ensure this matches your Terraform configuration
+ssh_private_key_path: "/home/{{ ansible_user }}/.ssh/terraform_key"  # Adjust if necessary
